@@ -21,8 +21,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --no-cache-dir git+https://github.com/vibevoice-community/VibeVoice.git
+# Clone und installiere VibeVoice
+WORKDIR /tmp
+RUN git clone https://github.com/vibevoice-community/VibeVoice.git && \
+    cd VibeVoice && \
+    pip install --no-cache-dir -e .
 
+WORKDIR /app
 COPY app/ ./app/
 
 RUN useradd -m -u 1000 appuser && \

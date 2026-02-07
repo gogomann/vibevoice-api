@@ -2,62 +2,31 @@ import os
 import base64
 import tempfile
 import logging
+import subprocess
+import json
 from pathlib import Path
 from typing import List, Optional
 from contextlib import asynccontextmanager
 
-import torch
-import torchaudio
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel, Field
 
-from vibevoice.model import VibeVoice
-from vibevoice.inference import inference
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-model_instance = None
-device = None
+MODEL_PATH = None
+VIBEVOICE_DIR = "/tmp/VibeVoice"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global model_instance, device
+    global MODEL_PATH
     
-    model_path = os.getenv("MODEL_PATH", "vibevoice/VibeVoice-1.5B")
-    force_cpu = os.getenv("FORCE_CPU", "false").lower() == "true"
-    
-    if force_cpu:
-        device = "cpu"
-        logger.info("FORCE_CPU aktiviert - nutze CPU")
-    elif torch.cuda.is_available():
-        device = "cuda"
-        logger.info("CUDA verfügbar - nutze GPU")
-    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-        device = "mps"
-        logger.info("MPS verfügbar - nutze Apple Silicon GPU")
-    else:
-        device = "cpu"
-        logger.info("Nutze CPU - dies kann langsam sein")
-    
-    logger.info(f"Lade VibeVoice Modell: {model_path}")
-    try:
-        model_instance = VibeVoice.from_pretrained(
-            model_path,
-            device=device,
-            torch_dtype=torch.float32 if device == "cpu" else torch.float16
-        )
-        logger.info("Modell erfolgreich geladen")
-    except Exception as e:
-        logger.error(f"Fehler beim Laden des Modells: {e}")
-        raise
+    MODEL_PATH = os.getenv("MODEL_PATH", "vibevoice/VibeVoice-1.5B")
+    logger.info(f"VibeVoice Modell-Pfad: {MODEL_PATH}")
+    logger.info("API bereit - Modell wird beim ersten Request geladen")
     
     yield
-    
-    del model_instance
-    if device != "cpu":
-        torch.cuda.empty_cache() if device == "cuda" else None
 
 app = FastAPI(
     title="VibeVoice TTS API",
@@ -109,7 +78,7 @@ async def root():
     return {
         "message": "VibeVoice TTS API",
         "version": "1.0.0",
-        "device": device,
+        "model": MODEL_PATH,
         "endpoints": {
             "synthesize": "/api/v1/synthesize",
             "synthesize_multipart": "/api/v1/synthesize/multipart",
@@ -121,8 +90,7 @@ async def root():
 async def health_check():
     return {
         "status": "healthy",
-        "model_loaded": model_instance is not None,
-        "device": device
+        "model_path": MODEL_PATH
     }
 
 @app.post("/api/v1/synthesize", response_model=TTSResponse)
@@ -135,12 +103,15 @@ async def synthesize_speech(request: TTSRequest):
     - Mehrere Sprecher: "[Alice] Hallo! [Frank] Hi Alice!"
     """
     try:
-        if model_instance is None:
-            raise HTTPException(status_code=503, detail="Modell nicht geladen")
+        # Erstelle temporäre Textdatei
+        text_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".txt", encoding='utf-8')
+        text_file.write(request.text)
+        text_file.close()
         
         speaker_names = [s.name for s in request.speakers]
         voice_refs = {}
         
+        # Voice References speichern
         for speaker in request.speakers:
             if speaker.voice_reference:
                 try:
@@ -149,36 +120,68 @@ async def synthesize_speech(request: TTSRequest):
                 except Exception as e:
                     logger.error(f"Fehler beim Voice Reference für {speaker.name}: {e}")
         
-        logger.info(f"Generiere Audio für Text: {request.text[:100]}...")
+        logger.info(f"Generiere Audio für {len(speaker_names)} Sprecher...")
         
-        output_audio = inference(
-            model=model_instance,
-            text=request.text,
-            speaker_names=speaker_names,
-            voice_refs=voice_refs if voice_refs else None,
-            device=device
+        # Baue Befehl für VibeVoice
+        cmd = [
+            "python",
+            f"{VIBEVOICE_DIR}/demo/inference_from_file.py",
+            "--model_path", MODEL_PATH,
+            "--txt_path", text_file.name,
+            "--speaker_names"
+        ] + speaker_names
+        
+        # Füge voice references hinzu wenn vorhanden
+        if voice_refs:
+            voice_paths = []
+            for speaker_name in speaker_names:
+                if speaker_name in voice_refs:
+                    voice_paths.append(voice_refs[speaker_name])
+                else:
+                    # Nutze default voice
+                    voice_paths.append("None")
+            
+            if any(p != "None" for p in voice_paths):
+                cmd.extend(["--voice_paths"] + voice_paths)
+        
+        # Führe VibeVoice aus
+        logger.info(f"Führe aus: {' '.join(cmd)}")
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=600  # 10 Minuten Timeout
         )
         
+        # Cleanup
+        os.unlink(text_file.name)
         for temp_file in voice_refs.values():
             try:
                 os.unlink(temp_file)
             except:
                 pass
         
-        output_path = tempfile.mktemp(suffix=".wav")
-        torchaudio.save(
-            output_path,
-            output_audio.cpu(),
-            request.sample_rate
-        )
+        if result.returncode != 0:
+            logger.error(f"VibeVoice Fehler: {result.stderr}")
+            raise HTTPException(status_code=500, detail=f"VibeVoice Fehler: {result.stderr[:500]}")
         
-        duration = output_audio.shape[-1] / request.sample_rate
+        # Finde generierte Audio-Datei (VibeVoice speichert in outputs/)
+        output_dir = Path(VIBEVOICE_DIR) / "demo" / "outputs"
+        output_files = sorted(output_dir.glob("*.wav"), key=lambda x: x.stat().st_mtime, reverse=True)
+        
+        if not output_files:
+            raise HTTPException(status_code=500, detail="Keine Audio-Datei generiert")
+        
+        output_path = str(output_files[0])
+        logger.info(f"Audio generiert: {output_path}")
+        
+        # Berechne Dauer (approximativ)
+        file_size = os.path.getsize(output_path)
+        duration = file_size / (request.sample_rate * 2)  # Approximation für 16-bit mono
         
         if request.output_format == "base64":
             with open(output_path, "rb") as f:
                 audio_base64 = base64.b64encode(f.read()).decode()
-            
-            os.unlink(output_path)
             
             return TTSResponse(
                 success=True,
@@ -192,10 +195,13 @@ async def synthesize_speech(request: TTSRequest):
                     "success": True,
                     "duration_seconds": duration,
                     "message": "Audio erfolgreich generiert",
-                    "download_url": f"/api/v1/download/{os.path.basename(output_path)}"
+                    "download_url": f"/api/v1/download/{Path(output_path).name}"
                 }
             )
     
+    except subprocess.TimeoutExpired:
+        logger.error("Timeout bei Audio-Generierung")
+        raise HTTPException(status_code=504, detail="Timeout bei Audio-Generierung (>10 Minuten)")
     except Exception as e:
         logger.error(f"Fehler bei Synthese: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
@@ -210,71 +216,30 @@ async def synthesize_speech_multipart(
 ):
     """
     Generiere Speech mit Upload von Voice References als Multipart Form.
-    
-    - text: Text der gesprochen werden soll
-    - speaker_names: Komma-getrennte Sprechernamen (z.B. "Alice,Frank")
-    - output_format: 'audio' oder 'base64'
-    - voice_files: Optional Audio-Dateien für Voice Cloning (in der gleichen Reihenfolge wie speaker_names)
     """
     try:
-        if model_instance is None:
-            raise HTTPException(status_code=503, detail="Modell nicht geladen")
-        
         speaker_list = [s.strip() for s in speaker_names.split(",")]
-        voice_refs = {}
         
-        if voice_files:
-            for idx, voice_file in enumerate(voice_files):
-                if idx < len(speaker_list):
-                    content = await voice_file.read()
-                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-                    temp_file.write(content)
-                    temp_file.close()
-                    voice_refs[speaker_list[idx]] = temp_file.name
+        # Konvertiere zu TTSRequest Format
+        speakers = []
+        for idx, speaker_name in enumerate(speaker_list):
+            speaker = {"name": speaker_name}
+            
+            if voice_files and idx < len(voice_files):
+                content = await voice_files[idx].read()
+                voice_ref_base64 = base64.b64encode(content).decode()
+                speaker["voice_reference"] = voice_ref_base64
+            
+            speakers.append(Speaker(**speaker))
         
-        logger.info(f"Generiere Audio für Text: {text[:100]}...")
-        
-        output_audio = inference(
-            model=model_instance,
+        request = TTSRequest(
             text=text,
-            speaker_names=speaker_list,
-            voice_refs=voice_refs if voice_refs else None,
-            device=device
+            speakers=speakers,
+            output_format=output_format,
+            sample_rate=sample_rate
         )
         
-        for temp_file in voice_refs.values():
-            try:
-                os.unlink(temp_file)
-            except:
-                pass
-        
-        output_path = tempfile.mktemp(suffix=".wav")
-        torchaudio.save(
-            output_path,
-            output_audio.cpu(),
-            sample_rate
-        )
-        
-        duration = output_audio.shape[-1] / sample_rate
-        
-        if output_format == "base64":
-            with open(output_path, "rb") as f:
-                audio_base64 = base64.b64encode(f.read()).decode()
-            
-            os.unlink(output_path)
-            
-            return {
-                "success": True,
-                "audio_base64": audio_base64,
-                "duration_seconds": duration,
-                "message": "Audio erfolgreich generiert"
-            }
-        else:
-            return FileResponse(
-                path=output_path,
-                media_type="audio/wav",
-                filename="output.wav"
-            )
+        return await synthesize_speech(request)
     
     except Exception as e:
         logger.error(f"Fehler bei Synthese: {e}", exc_info=True)

@@ -1,0 +1,145 @@
+╔════════════════════════════════════════════════════════════════════╗
+║              Windows Batch-Dateien Übersicht                      ║
+╚════════════════════════════════════════════════════════════════════╝
+
+🚀 HAUPT-DATEIEN
+═════════════════
+
+📄 start-cpu.bat
+   → API starten (Intel NUC CPU-optimiert)
+   → Mit System-Check und automatischer Installation
+   → Wartet bis API bereit ist
+   
+   NUTZE DIESE DATEI ZUM STARTEN!
+
+
+🔧 VERWALTUNGS-DATEIEN
+═══════════════════════
+
+📄 cpu-logs.bat
+   → Zeigt Live-Logs der API an
+   → Nützlich für Debugging
+   → Ctrl+C zum Beenden
+
+📄 cpu-down.bat
+   → Stoppt die API sauber
+   → Container wird heruntergefahren
+
+📄 cpu-restart.bat
+   → Startet die API neu
+   → Schneller als Stop + Start
+
+📄 cpu-status.bat
+   → Zeigt Container Status
+   → Zeigt Ressourcen-Nutzung (RAM, CPU)
+   → Zeigt Health Check
+
+
+🧪 TEST-DATEIEN
+════════════════
+
+📄 health-check.bat
+   → Schneller Health Check
+   → Prüft ob API erreichbar ist
+   → Funktioniert ohne Python
+
+📄 test.bat
+   → Führt vollständigen Python Test-Client aus
+   → Generiert Beispiel-Audio
+   → Benötigt Python
+
+
+📋 TYPISCHER WORKFLOW
+══════════════════════
+
+1. Erstes Mal starten:
+   ✅ Doppelklick: start-cpu.bat
+   ⏳ Warte 10-20 Minuten (Modell-Download)
+   
+2. Status prüfen:
+   ✅ Doppelklick: health-check.bat
+   
+3. Testen:
+   ✅ Doppelklick: test.bat
+   
+4. Bei Problemen:
+   ✅ Doppelklick: cpu-logs.bat
+   
+5. Stoppen:
+   ✅ Doppelklick: cpu-down.bat
+
+
+💡 TIPPS
+═════════
+
+→ Alle BAT-Dateien einfach per Doppelklick ausführen!
+
+→ Beim ersten Start:
+  - Warte 10-20 Minuten
+  - Modell wird heruntergeladen
+  - Das ist NORMAL!
+
+→ Bei Problemen:
+  - Lies WINDOWS_SETUP.md
+  - Prüfe cpu-logs.bat
+  - Lies TROUBLESHOOTING.md
+
+→ Docker Memory:
+  - Muss auf 20GB eingestellt sein
+  - Docker Desktop → Settings → Resources
+
+
+🔍 SCHNELL-DIAGNOSE
+════════════════════
+
+❌ API startet nicht?
+   → Doppelklick: cpu-logs.bat
+   → Prüfe Docker Desktop (läuft es?)
+   → Prüfe Docker Memory (20GB?)
+
+❌ "Docker ist nicht installiert"?
+   → Installiere Docker Desktop
+   → Link in WINDOWS_SETUP.md
+
+❌ API sehr langsam?
+   → Das ist NORMAL auf CPU!
+   → Siehe Performance in WINDOWS_SETUP.md
+
+
+📖 DOKUMENTATION
+═════════════════
+
+START_HIER.md        → Beginne hier!
+WINDOWS_SETUP.md     → Vollständige Windows Anleitung
+TROUBLESHOOTING.md   → Problemlösungen
+README.md            → API Dokumentation
+INTEL_NUC_SETUP.md   → NUC-spezifische Details
+
+
+✅ CHECKLISTE
+══════════════
+
+[ ] Docker Desktop installiert
+[ ] Docker Memory auf 20GB
+[ ] Docker Desktop läuft (grünes Icon)
+[ ] start-cpu.bat ausgeführt
+[ ] 10-15 Minuten gewartet
+[ ] health-check.bat → ✅
+[ ] test.bat → Audio generiert
+
+
+🎯 WICHTIGSTE BEFEHLE
+══════════════════════
+
+Starten:       start-cpu.bat
+Status:        health-check.bat
+Logs:          cpu-logs.bat
+Stoppen:       cpu-down.bat
+Test:          test.bat
+
+
+🎉 VIEL ERFOLG!
+════════════════
+
+Bei Fragen schau in WINDOWS_SETUP.md
+oder schicke mir die Logs von cpu-logs.bat!
