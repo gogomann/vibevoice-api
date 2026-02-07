@@ -1,0 +1,147 @@
+╔════════════════════════════════════════════════════════════════════╗
+║          VibeVoice API - Intel NUC CPU-Optimized Version          ║
+╚════════════════════════════════════════════════════════════════════╝
+
+📦 PROJEKT STRUKTUR
+═══════════════════
+
+vibevoice-api/
+├── 🚀 START_HIER.md              ← FANG HIER AN!
+│
+├── 📘 Dokumentation
+│   ├── README.md                 - Vollständige API Dokumentation
+│   ├── QUICKSTART.md             - 3-Schritte Schnellstart
+│   ├── INTEL_NUC_SETUP.md        - Detaillierter Intel NUC Guide
+│   ├── TROUBLESHOOTING.md        - Schnelle Problemlösungen
+│   └── DEPLOYMENT.md             - Produktions-Deployment
+│
+├── 🐳 Docker Konfiguration
+│   ├── Dockerfile                - Multi-Arch Docker Image
+│   ├── docker-compose.yml        - Standard (GPU/Auto)
+│   └── docker-compose.cpu.yml    - CPU-Only (20GB RAM, 8 Kerne)
+│
+├── 🎯 Start Scripts
+│   ├── start-cpu.sh              - Intel NUC Optimiert (empfohlen!)
+│   └── start.sh                  - Standard Start
+│
+├── ⚙️ Konfiguration
+│   ├── .env.example              - Environment Variables
+│   ├── requirements.txt          - Python Dependencies
+│   └── Makefile                  - Convenience Befehle
+│
+├── 💻 API Code
+│   └── app/
+│       ├── __init__.py
+│       └── main.py               - FastAPI Hauptanwendung
+│
+├── 📝 Beispiele
+│   └── examples/
+│       └── client.py             - Python Client Beispiele
+│
+└── 📄 Git & Lizenzen
+    ├── .gitignore
+    ├── .gitattributes
+    ├── .dockerignore
+    └── LICENSE
+
+
+🎯 SCHNELLSTART FÜR INTEL NUC
+══════════════════════════════
+
+1. Archiv entpacken:
+   tar -xzf vibevoice-api-cpu-optimized.tar.gz
+   cd vibevoice-api
+
+2. Start Script ausführen:
+   ./start-cpu.sh
+   
+   Oder mit Make:
+   make cpu-up
+
+3. Warte 10-15 Minuten beim ersten Start
+   (Modell wird heruntergeladen und geladen)
+
+4. Teste:
+   curl http://localhost:8000/health
+
+
+⚡ WICHTIGSTE BEFEHLE
+═════════════════════
+
+make cpu-up        - API starten (CPU-optimiert)
+make cpu-logs      - Logs anzeigen
+make cpu-down      - API stoppen
+make cpu-restart   - API neu starten
+make cpu-stats     - Ressourcen überwachen
+make test          - Beispiel Client ausführen
+
+
+🔧 KONFIGURATION
+═════════════════
+
+CPU-Only:     FORCE_CPU=true
+RAM Limit:    20GB
+CPU Kerne:    8
+Modell:       VibeVoice-1.5B (schneller)
+              VibeVoice-7B (besser)
+
+
+⏱️ PERFORMANCE ERWARTUNGEN (CPU-Only)
+═══════════════════════════════════════
+
+Erster Start:             10-20 Minuten (einmalig)
+Folgende Starts:          2-3 Minuten
+Audio Generierung:
+  - 10 Sekunden Text:     ~30-60 Sekunden
+  - 1 Minute Text:        ~3-5 Minuten
+  - 5 Minuten Text:       ~15-25 Minuten
+
+
+🆘 HILFE
+═════════
+
+Probleme beim Start?
+  → Lies: TROUBLESHOOTING.md
+
+Detaillierte Anleitung?
+  → Lies: INTEL_NUC_SETUP.md
+
+API Dokumentation?
+  → Lies: README.md
+  → Öffne: http://localhost:8000/docs
+
+
+📊 SYSTEM ANFORDERUNGEN
+════════════════════════
+
+Minimum:
+  - CPU: Intel/AMD x86_64
+  - RAM: 8 GB
+  - Speicher: 10 GB
+
+Empfohlen (wie dein NUC):
+  - CPU: 4+ Kerne
+  - RAM: 16-32 GB
+  - Speicher: 20 GB
+
+
+✅ CHECKLISTE
+══════════════
+
+[ ] Archiv entpackt
+[ ] Docker & Docker Compose installiert
+[ ] Mindestens 8GB RAM verfügbar
+[ ] ./start-cpu.sh ausgeführt
+[ ] 10-15 Minuten gewartet
+[ ] Health Check OK: curl http://localhost:8000/health
+[ ] Test durchgeführt: make test
+
+
+🎉 VIEL ERFOLG!
+════════════════
+
+Bei Fragen schicke mir:
+  - free -h
+  - docker-compose -f docker-compose.cpu.yml ps
+  - docker-compose -f docker-compose.cpu.yml logs --tail=50
+
