@@ -1,0 +1,67 @@
+version: '3.8'
+
+# Optimiert für Intel NUC mit CPU-Only
+# Nutzung: docker-compose -f docker-compose.cpu.yml up -d
+
+services:
+  vibevoice-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vibevoice-api-cpu
+    ports:
+      - "8010:8000"
+    environment:
+      # Modell Konfiguration
+      - MODEL_PATH=vibevoice/VibeVoice-1.5B
+      - PYTHONUNBUFFERED=1
+      - FORCE_CPU=true
+      
+      # CPU Optimierungen
+      - OMP_NUM_THREADS=8
+      - MKL_NUM_THREADS=8
+      - OPENBLAS_NUM_THREADS=8
+      - VECLIB_MAXIMUM_THREADS=8
+      - NUMEXPR_NUM_THREADS=8
+      
+      # PyTorch CPU Optimierungen
+      - PYTORCH_ENABLE_MPS_FALLBACK=0
+      - CUDA_VISIBLE_DEVICES=""
+      
+    volumes:
+      - model-cache:/root/.cache/huggingface
+      - ./outputs:/app/outputs
+    
+    restart: unless-stopped
+    
+    # Resource Limits für Intel NUC
+    deploy:
+      resources:
+        limits:
+          cpus: '8.0'        # Nutze bis zu 8 CPU Kerne
+          memory: 20G        # 20GB RAM Limit
+        reservations:
+          cpus: '4.0'        # Reserve mindestens 4 Kerne
+          memory: 8G         # Reserve mindestens 8GB
+    
+    # Shared Memory für große Modelle
+    shm_size: '4gb'
+    
+    # Health Check mit längerer Startzeit
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8010/health || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 180s    # 3 Minuten Startzeit
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  model-cache:
+    driver: local

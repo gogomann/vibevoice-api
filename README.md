@@ -34,6 +34,21 @@ Eine vollständige REST API für Microsoft's VibeVoice Text-to-Speech System mit
 
 ### 1. Mit Docker (Empfohlen)
 
+**Für Intel NUC / CPU-Only:**
+```bash
+# Repository klonen
+git clone https://github.com/DEIN-USERNAME/vibevoice-api.git
+cd vibevoice-api
+
+# CPU-optimierte Version starten (20GB RAM, 8 CPU Kerne)
+./start-cpu.sh
+# Oder: make cpu-up
+
+# Logs anzeigen
+make cpu-logs
+```
+
+**Für Systeme mit GPU:**
 ```bash
 # Repository klonen
 git clone https://github.com/DEIN-USERNAME/vibevoice-api.git

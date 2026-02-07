@@ -26,8 +26,12 @@ async def lifespan(app: FastAPI):
     global model_instance, device
     
     model_path = os.getenv("MODEL_PATH", "vibevoice/VibeVoice-1.5B")
+    force_cpu = os.getenv("FORCE_CPU", "false").lower() == "true"
     
-    if torch.cuda.is_available():
+    if force_cpu:
+        device = "cpu"
+        logger.info("FORCE_CPU aktiviert - nutze CPU")
+    elif torch.cuda.is_available():
         device = "cuda"
         logger.info("CUDA verfügbar - nutze GPU")
     elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():

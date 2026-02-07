@@ -11,6 +11,9 @@ services:
     environment:
       - MODEL_PATH=vibevoice/VibeVoice-1.5B
       - PYTHONUNBUFFERED=1
+      - FORCE_CPU=true
+      - OMP_NUM_THREADS=8
+      - MKL_NUM_THREADS=8
     volumes:
       - model-cache:/root/.cache/huggingface
       - ./outputs:/app/outputs
@@ -18,13 +21,17 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '8'
+          memory: 20G
+        reservations:
           memory: 8G
+    shm_size: '2gb'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 120s
 
 volumes:
   model-cache:
